@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מעקב נוכחות בדמינטון</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+  :root{
+    color-scheme: light;
+    --bg:#f4f6f8; --card:#ffffff; --ink:#1a2b33; --muted:#6b7c85;
+    --line:#e3e9ec; --accent:#0e9488; --accent2:#f2b705; --accent-soft:#e6f5f3;
+    --present:#0e9488; --absent:#eef2f4;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:'Rubik','Segoe UI',Arial,'Helvetica Neue',sans-serif;padding:22px 18px 40px}
+  .wrap{max-width:1000px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 2px;font-weight:700}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .kpi .n{font-size:26px;font-weight:700;line-height:1.1}
+  .kpi .l{font-size:12px;color:var(--muted);margin-top:4px}
+  .kpi .n span{font-size:14px;color:var(--muted);font-weight:500}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin-bottom:18px}
+  .card h2{font-size:15px;margin:0 0 12px;font-weight:600}
+  .chart-box{height:230px;position:relative}
+  .lb{display:flex;flex-direction:column;gap:7px}
+  .row{display:grid;grid-template-columns:130px 1fr 42px;align-items:center;gap:10px;font-size:13px}
+  .row .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar{height:16px;border-radius:8px;background:var(--accent);min-width:4px}
+  .bar.core{background:var(--accent2)}
+  .cnt{text-align:left;color:var(--muted);font-variant-numeric:tabular-nums}
+  .mtx-scroll{overflow-x:auto}
+  table{border-collapse:collapse;font-size:12.5px;width:100%}
+  th,td{padding:6px 8px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{color:var(--muted);font-weight:600;font-size:11.5px}
+  td.name,th.name{text-align:right;position:sticky;right:0;background:var(--card);font-weight:500}
+  .dot{display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--absent)}
+  .dot.on{background:var(--present)}
+  td.tot{font-weight:700;color:var(--accent)}
+  .legend{font-size:11.5px;color:var(--muted);margin-top:8px;display:flex;gap:16px;align-items:center}
+  .legend span{display:inline-flex;gap:5px;align-items:center}
+  .foot{color:var(--muted);font-size:11.5px;text-align:center;margin-top:8px}
+  .picker{margin-bottom:14px}
+  .picker select{font-family:inherit;font-size:14px;padding:8px 12px;border:1px solid var(--line);
+    border-radius:10px;background:var(--card);color:var(--ink);min-width:230px}
+  .pstats .phead{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+  .pchip{background:var(--accent-soft);border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+  .pchip .n{font-size:20px;font-weight:700;color:var(--accent);line-height:1.1}
+  .pchip .l{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .mtable{width:100%;border-collapse:collapse;font-size:13px}
+  .mtable th,.mtable td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right}
+  .mtable th{color:var(--muted);font-weight:600;font-size:12px}
+  .mtable .mbar-wrap{background:var(--absent);border-radius:6px;height:14px;overflow:hidden;min-width:80px}
+  .mtable .mbar{height:100%;background:var(--accent);border-radius:6px}
+  .mtable .dates{color:var(--muted);font-size:12px}
+  .mtable .dates b{color:var(--accent);font-weight:600}
+  .empty{color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🏸 מעקב נוכחות — מועדון הבדמינטון</h1>
+  <div class="sub" id="sub"></div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card">
+    <h2>נוכחות שחקן/ית</h2>
+    <div class="picker" style="display:flex;gap:10px;flex-wrap:wrap">
+      <select id="playerSel" aria-label="בחר שחקן/ית">
+        <option value="">— בחר/י שחקן/ית —</option>
+      </select>
+      <select id="monthSel" aria-label="סנן לפי חודש">
+        <option value="">כל החודשים</option>
+      </select>
+    </div>
+    <div id="playerStats" class="pstats"></div>
+  </div>
+
+  <div class="card">
+    <h2>נוכחות לפי אימון<span id="trendSub" style="font-weight:400;color:var(--muted)"></span></h2>
+    <div class="chart-box"><canvas id="trend"></canvas></div>
+  </div>
+
+  <div class="card">
+    <h2>טבלת מובילים — הופעות מתוך <span id="np"></span> אימונים</h2>
+    <div class="lb" id="lb"></div>
+    <div class="legend"><span><i class="bar core" style="width:22px"></i> נוכחות מלאה</span></div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+const DATA = {
+  generated: "2026-08-17",
+  practices: [
+    {date:"2026-07-03", present:["לירן","רועי ירקוני","תמיר","אבי","רועי מלכה","בן","טלי טורבילו","גיא","אסיף","אביה","אריאל ווינר"]},
+    {date:"2026-07-04", present:["אריאל סלע","לירן","רועי ירקוני","גלעד","רותם","ויקי","סמיון","אולגה","אנטון","תמיר","חנוך","אבי","דנה קוגל (אישי)"]},
+    {date:"2026-07-06", present:["לירן","רועי ירקוני","גלעד","ויקי","תמיר","אבי","רועי מלכה","טלי טורבילו","מריה","בסיל","רז","אמיתי","אמיר"]},
+    {date:"2026-07-10", present:["לירן","רועי ירקוני","תמיר","אבי","רועי מלכה","טלי טורבילו","שני","איציק","שחר","עידו","אירית"]},
+    {date:"2026-07-11", present:["לירן","רועי ירקוני","גלעד","רותם","ויקי","סמיון","אולגה","אנטון","תמיר","חנוך","אבי","דנה קוגל (אישי)","אמיתי","שני","שון"]},
+    {date:"2026-07-13", present:["לירן","רועי ירקוני","גלעד","אולגה","תמיר","אבי","רועי מלכה","טלי טורבילו","מריה","בסיל","רז","אמיתי","אמיר","שני","שון","חזי שלום","חזי גבאי"]},
+    {date:"2026-07-17", present:["לירן","רועי ירקוני","תמיר","גיא","אסיף","אביה","אריאל ווינר","אמיתי","איציק","שחר","עידו","אירית","שון","חזי שלום","חזי גבאי","אריה"]},
+    {date:"2026-07-18", present:["לירן","רועי ירקוני","גלעד","רותם","סמיון","תמיר","אבי","רועי מלכה","טלי טורבילו","שני","שון","מגרש אישי (שלמה, אמנון ולירוי)"]},
+    {date:"2026-07-20", present:["גלעד","מריה","לירן","רועי ירקוני","אמיר","מריון","שני","תמיר","רועי מלכה","שון","אולגה","חנוך"]},
+    {date:"2026-07-24", present:["לירן","בן","שון","תמיר","איציק","אמיתי","חזי גבאי","שני","אירית","גיא","אריה","שחר","אביה","עידו"]},
+    {date:"2026-07-25", present:["לירן","תמיר","גלעד","רועי ירקוני","מריון","שני","סמיון","חזי גבאי","רותם","טלי טורבילו","דימה טרובילו","רועי מלכה","אולגה","אנטון"]},
+    {date:"2026-07-27", present:["מריון","רז","שני","חזי שלום","גלעד","מריה","שון","רועי ירקוני","אולגה","תמיר","רועי מלכה","טלי טורבילו","חנוך"]},
+    {date:"2026-07-31", present:["תמיר","רועי ירקוני","בן","איציק","אירית","שחר","גיא","אביה","עידו","איתן"]},
+    {date:"2026-08-01", present:["רועי ירקוני","שון","גלעד","חזי גבאי","רותם","שני","סמיון","מריון","רועי מלכה","טלי טורבילו","תמיר","דנה קוגל (אישי)"]},
+    {date:"2026-08-03", present:["גלעד","רועי ירקוני","מריה","שון","תמיר","חנוך","טלי טורבילו","אולגה","רועי מלכה","אמיתי","ויקי","מריון"]},
+    {date:"2026-08-07", present:["אבי","איציק","אלון","אריאל סלע","אמיתי","אירית","אריאל ווינר","גיא","שחר","יונתן","אביה","איתן זיו (ניסיון)","איריס (ניסיון)"]},
+    {date:"2026-08-08", present:["אריאל סלע","רועי ירקוני","גלעד","רותם","סמיון","אולגה","אנטון","תמיר","אבי","דנה קוגל (אישי)","רועי מלכה","טלי טורבילו","שון","מריון","אמיתי"]},
+    {date:"2026-08-10", present:["רועי ירקוני","אבי","גלעד","מריה","תמיר","טלי טורבילו","אריאל סלע","מריון","שון","חנוך","רועי מלכה","ויקי","אמיתי","רז"]},
+    {date:"2026-08-14", present:["מריה","גלעד","רועי ירקוני","אבי","לירן","אריאל סלע","אנטון","אולגה","תמיר","סמיון","אביה","איריס (ניסיון)","אריאל ווינר","גיא","יונתן"]},
+    {date:"2026-08-15", present:["אריאל סלע","רותם","טלי טורבילו","רועי מלכה","לירן","אבי","מריון","חנוך","רועי ירקוני"]},
+    {date:"2026-08-17", present:["רועי ירקוני","לירן","תמיר","אריאל סלע","מריה","חנוך","אולגה","מריון","ויקי","אמיתי"]}
+  ],
+  roster: ["אריאל סלע","לירן","רועי ירקוני","גלעד","רותם","ויקי","סמיון","אולגה","אנטון","תמיר","חנוך","אבי","דנה קוגל (אישי)","רועי מלכה","בן","טלי טורבילו","גיא","אסיף","אביה","אריאל ווינר","מריה","בסיל","רז","אמיתי","אמיר","שני","איציק","שחר","עידו","אירית","שון","חזי שלום","חזי גבאי","אריה","מגרש אישי (שלמה, אמנון ולירוי)","מריון","דימה טרובילו","איתן","אלון","יונתן","איריס (ניסיון)","איתן זיו (ניסיון)"]
+};
+
+const HEDAY=['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+const HEMONTH=['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+function fmt(d){const[y,m,dd]=d.split('-').map(Number);const dt=new Date(y,m-1,dd);
+  return HEDAY[dt.getDay()]+' '+dd+'.'+m;}
+function monthLabel(k){const[y,m]=k.split('-').map(Number);return HEMONTH[m]+' '+y;}
+
+const ALL=DATA.practices;
+const ACCENT='#0e9488', ABSENT='#dfe6e9';
+let curPlayer='', curMonth='';
+
+// ---- populate player dropdown (ordered by overall attendance) ----
+const totAll={}; DATA.roster.forEach(n=>totAll[n]=0);
+ALL.forEach(p=>p.present.forEach(n=>{totAll[n]=(totAll[n]||0)+1;}));
+const rankedAll=[...DATA.roster].sort((a,b)=>totAll[b]-totAll[a]);
+const sel=document.getElementById('playerSel');
+rankedAll.forEach(n=>{
+  const o=document.createElement('option');
+  o.value=n; o.textContent=`${n} (${totAll[n]}/${ALL.length})`;
+  sel.appendChild(o);
+});
+
+// ---- populate month dropdown ----
+const monthSel=document.getElementById('monthSel');
+[...new Set(ALL.map(p=>p.date.slice(0,7)))].sort().forEach(k=>{
+  const o=document.createElement('option');
+  o.value=k; o.textContent=monthLabel(k);
+  monthSel.appendChild(o);
+});
+
+// ---- chart shell (updated on every render) ----
+const trendChart=new Chart(document.getElementById('trend'),{
+  type:'bar',
+  data:{labels:[],datasets:[{data:[],backgroundColor:ACCENT,borderRadius:6,maxBarThickness:52}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>c.parsed.y+' שחקנים'}}},
+    scales:{y:{beginAtZero:true,ticks:{precision:0},grid:{color:'#eef2f4'}},
+      x:{grid:{display:false}}}}
+});
+
+function activePractices(){
+  return curMonth ? ALL.filter(p=>p.date.slice(0,7)===curMonth) : ALL;
+}
+
+function render(){
+  const P=activePractices(), N=P.length;
+  const counts=P.map(p=>p.present.length);
+  const tot={}; DATA.roster.forEach(n=>tot[n]=0);
+  P.forEach(p=>p.present.forEach(n=>{tot[n]=(tot[n]||0)+1;}));
+  const ranked=[...DATA.roster].sort((a,b)=>tot[b]-tot[a]);
+  const maxTot=Math.max(1,...Object.values(tot));
+  const attendedSet=new Set(); P.forEach(p=>p.present.forEach(n=>attendedSet.add(n)));
+
+  const scope=curMonth?monthLabel(curMonth):`${fmt(ALL[0].date)} – ${fmt(ALL[ALL.length-1].date)} 2026`;
+  document.getElementById('sub').textContent=`${scope} · עודכן לאחרונה ${DATA.generated}`;
+  document.getElementById('np').textContent=N;
+
+  const avg=N?counts.reduce((a,b)=>a+b,0)/N:0;
+  const peak=N?Math.max(...counts):0;
+  const peakDate=N?fmt(P[counts.indexOf(peak)].date):'—';
+  const kpis=[
+    {n:N,l:'אימונים נרשמו'},
+    {n:attendedSet.size,l:'שחקנים שנכחו (מתוך '+DATA.roster.length+' ברשימה)'},
+    {n:avg.toFixed(1),l:'נוכחות ממוצעת'},
+    {n:peak,l:'שיא נוכחות ('+peakDate+')'}
+  ];
+  document.getElementById('kpis').innerHTML=kpis.map(k=>
+    `<div class="kpi"><div class="n">${k.n}</div><div class="l">${k.l}</div></div>`).join('');
+
+  document.getElementById('lb').innerHTML=ranked.map(n=>{
+    const c=tot[n], w=Math.max(4,Math.round(c/maxTot*100));
+    const core=(N>0&&c===N)?' core':'';
+    return `<div class="row"><div class="name" title="${n}">${n}</div>`+
+      `<div><div class="bar${core}" style="width:${w}%"></div></div>`+
+      `<div class="cnt">${c}/${N}</div></div>`;
+  }).join('');
+
+  renderTrend(P);
+  renderPlayerPanel(P,N,tot);
+}
+
+function renderTrend(P){
+  const sub=document.getElementById('trendSub');
+  const ds=trendChart.data.datasets[0];
+  trendChart.data.labels=P.map(p=>fmt(p.date));
+  if(!curPlayer){
+    sub.textContent='';
+    ds.data=P.map(p=>p.present.length); ds.backgroundColor=ACCENT;
+    trendChart.options.scales.y.max=undefined;
+    trendChart.options.scales.y.ticks={precision:0,display:true};
+    trendChart.options.plugins.tooltip.callbacks.label=c=>c.parsed.y+' שחקנים';
+  }else{
+    const present=P.map(p=>p.present.includes(curPlayer));
+    sub.textContent=' — '+curPlayer;
+    ds.data=present.map(()=>1);
+    ds.backgroundColor=present.map(v=>v?ACCENT:ABSENT);
+    trendChart.options.scales.y.max=1;
+    trendChart.options.scales.y.ticks={display:false};
+    trendChart.options.plugins.tooltip.callbacks.label=c=>present[c.dataIndex]?'נכח/ה':'נעדר/ה';
+  }
+  trendChart.update();
+}
+
+function renderPlayerPanel(P,N,tot){
+  const box=document.getElementById('playerStats');
+  if(!curPlayer){box.innerHTML='<div class="empty">בחר/י שחקן/ית כדי לראות את הנוכחות האישית לאורך האימונים.</div>';return;}
+  const total=tot[curPlayer]||0, firstDate=P.find(p=>p.present.includes(curPlayer));
+  const rate=N?Math.round(total/N*100):0;
+  box.innerHTML=`<div class="phead">
+    <div class="pchip"><div class="n">${total}/${N}</div><div class="l">סה״כ אימונים</div></div>
+    <div class="pchip"><div class="n">${rate}%</div><div class="l">אחוז נוכחות</div></div>
+    <div class="pchip"><div class="n">${firstDate?fmt(firstDate.date):'—'}</div><div class="l">הופעה ראשונה</div></div>
+  </div>`;
+}
+
+sel.addEventListener('change',e=>{curPlayer=e.target.value;render();});
+monthSel.addEventListener('change',e=>{curMonth=e.target.value;render();});
+render();
+
+document.getElementById('foot').textContent=
+  'תמונת מצב מתוך Badminton_Attendance_Tracker.xlsx — לא מתעדכן אוטומטית; יש להפעיל מחדש כדי לרענן.';
+</script>
+</body>
+</html>
