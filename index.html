@@ -76,6 +76,9 @@
       <select id="monthSel" aria-label="סנן לפי חודש">
         <option value="">כל החודשים</option>
       </select>
+      <select id="daySel" aria-label="סנן לפי יום בשבוע">
+        <option value="">כל ימי השבוע</option>
+      </select>
     </div>
     <div id="playerStats" class="pstats"></div>
   </div>
@@ -96,7 +99,7 @@
 
 <script>
 const DATA = {
-  generated: "2026-09-07",
+  generated: "2026-09-15",
   practices: [
     {date:"2026-07-03", present:["לירן","רועי י","תמיר","אבי","רועי מ","בן","טלי ט","גיא","אסיף","אביה","אריאל ו"]},
     {date:"2026-07-04", present:["אריאל ס","לירן","רועי י","גלעד","רותם","ויקי","סמיון","אולגה","אנטון","תמיר","חנוך","אבי","דנה ק (אישי)"]},
@@ -127,12 +130,17 @@ const DATA = {
     {date:"2026-08-31", present:["אריאל ס","לירן","אבי","מריה","מריון","חנוך","אמיתי","ויקי","רועי י","מרינה נובי (ניסיון)","מרינה וילי (ניסיון)"]},
     {date:"2026-09-04", present:["גלעד","לירן","רועי י","אבי","בן","אלון","איציק","רמיל","מיה","יונתן","שחר","עידו","אריאל ו","גיא"]},
     {date:"2026-09-05", present:["מריון","גלעד","אבי","לירן","רועי י","חזי ג","סמיון","חנוך"]},
-    {date:"2026-09-07", present:["אריאל ס","רועי י","גלעד","לירן","אבי","מריון","תמיר","ויקי","שון","טלי ט","מריה","בסיל","אמיתי","רועי מ","חנוך"]}
+    {date:"2026-09-07", present:["אריאל ס","רועי י","גלעד","לירן","אבי","מריון","תמיר","ויקי","שון","טלי ט","מריה","בסיל","אמיתי","רועי מ","חנוך"]},
+    {date:"2026-09-12", present:["תמיר","רויטל","אריאל ס","מריון","סמיון","אבי","שון","לירן","רועי י","רותם"]},
+    {date:"2026-09-13", present:["אירית","חזי ג","מריון","רועי מ","טלי ט","אנטון","אולגה","אבי","חנוך","תמיר","גלעד","אריאל ס","רועי י","לירן"]},
+    {date:"2026-09-14", present:["רועי י","לירן","מריה","שון","תמיר","מריון","רועי מ","טלי ט","ויקי","אמיתי","רז","אולגה","חזי ג"]}
   ],
-  roster: ["אריאל ס","לירן","רועי י","גלעד","רותם","ויקי","סמיון","אולגה","אנטון","תמיר","חנוך","אבי","דנה ק (אישי)","רועי מ","בן","טלי ט","גיא","אסיף","אביה","אריאל ו","מריה","בסיל","רז","אמיתי","אמיר","שני","איציק","שחר","עידו","אירית","שון","חזי ש","חזי ג","אריה","מגרש אישי (שלמה, אמנון ולירוי)","מריון","דימה ט","איתן","אלון","יונתן","איריס (ניסיון)","איתן זיו (ניסיון)","גל חירם (אישי)","מרינה נובי (ניסיון)","מרינה וילי (ניסיון)","רמיל","מיה"]
+  roster: ["אריאל ס","לירן","רועי י","גלעד","רותם","ויקי","סמיון","אולגה","אנטון","תמיר","חנוך","אבי","דנה ק (אישי)","רועי מ","בן","טלי ט","גיא","אסיף","אביה","אריאל ו","מריה","בסיל","רז","אמיתי","אמיר","שני","איציק","שחר","עידו","אירית","שון","חזי ש","חזי ג","אריה","מגרש אישי (שלמה, אמנון ולירוי)","מריון","דימה ט","איתן","אלון","יונתן","איריס (ניסיון)","איתן זיו (ניסיון)","גל חירם (אישי)","מרינה נובי (ניסיון)","מרינה וילי (ניסיון)","רמיל","מיה","רויטל"]
 };
 
 const HEDAY=['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+const HEDAYFULL=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+function dayOf(d){const[y,m,dd]=d.split('-').map(Number);return new Date(y,m-1,dd).getDay();}
 const HEMONTH=['','ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 function fmt(d){const[y,m,dd]=d.split('-').map(Number);const dt=new Date(y,m-1,dd);
   return HEDAY[dt.getDay()]+' '+dd+'.'+m;}
@@ -152,7 +160,7 @@ function shortName(n){
 
 const ALL=DATA.practices;
 const ACCENT='#0e9488', ABSENT='#dfe6e9';
-let curPlayer='', curMonth='';
+let curPlayer='', curMonth='', curDay='';
 
 // ---- populate player dropdown (ordered by overall attendance) ----
 const totAll={}; DATA.roster.forEach(n=>totAll[n]=0);
@@ -173,6 +181,14 @@ const monthSel=document.getElementById('monthSel');
   monthSel.appendChild(o);
 });
 
+// ---- populate day-of-week dropdown (only days that actually occur) ----
+const daySel=document.getElementById('daySel');
+[...new Set(ALL.map(p=>dayOf(p.date)))].sort((a,b)=>a-b).forEach(d=>{
+  const o=document.createElement('option');
+  o.value=String(d); o.textContent='ימי '+HEDAYFULL[d];
+  daySel.appendChild(o);
+});
+
 // ---- chart shell (updated on every render) ----
 const trendChart=new Chart(document.getElementById('trend'),{
   type:'bar',
@@ -185,7 +201,9 @@ const trendChart=new Chart(document.getElementById('trend'),{
 });
 
 function activePractices(){
-  return curMonth ? ALL.filter(p=>p.date.slice(0,7)===curMonth) : ALL;
+  return ALL.filter(p=>
+    (curMonth==='' || p.date.slice(0,7)===curMonth) &&
+    (curDay===''   || dayOf(p.date)===+curDay));
 }
 
 function render(){
@@ -197,8 +215,12 @@ function render(){
   const maxTot=Math.max(1,...Object.values(tot));
   const attendedSet=new Set(); P.forEach(p=>p.present.forEach(n=>attendedSet.add(n)));
 
-  const scope=curMonth?monthLabel(curMonth):`${fmt(ALL[0].date)} – ${fmt(ALL[ALL.length-1].date)} 2026`;
-  document.getElementById('sub').textContent=`${scope} · עודכן לאחרונה ${DATA.generated}`;
+  const bits=[];
+  if(curDay!=='')bits.push('ימי '+HEDAYFULL[+curDay]);
+  if(curMonth)bits.push(monthLabel(curMonth));
+  else if(N)bits.push(`${fmt(P[0].date)} – ${fmt(P[N-1].date)} 2026`);
+  if(!N)bits.push('אין אימונים בטווח הנבחר');
+  document.getElementById('sub').textContent=`${bits.join(' · ')} · עודכן לאחרונה ${DATA.generated}`;
   document.getElementById('np').textContent=N;
 
   const avg=N?counts.reduce((a,b)=>a+b,0)/N:0;
@@ -262,6 +284,7 @@ function renderPlayerPanel(P,N,tot){
 
 sel.addEventListener('change',e=>{curPlayer=e.target.value;render();});
 monthSel.addEventListener('change',e=>{curMonth=e.target.value;render();});
+daySel.addEventListener('change',e=>{curDay=e.target.value;render();});
 render();
 
 document.getElementById('foot').textContent=
